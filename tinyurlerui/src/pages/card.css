@@ -2,3 +2,11 @@
   position: relative !important; /* 确保覆盖 Bootstrap 的默认 position */
   z-index: 0 !important; /* 确保 z-index 生效 */
 }
+
+.text-truncate {
+  overflow: hidden; /* 隐藏超出容器的部分内容 */
+  white-space: nowrap; /* 禁止内容换行 */
+  text-overflow: ellipsis; /* 使用省略号替代超出部分 */
+  display: block; /* 确保效果在块级上下文中生效 */
+  max-width: 100%; /* 确保内容限制在容器宽度内 */
+}

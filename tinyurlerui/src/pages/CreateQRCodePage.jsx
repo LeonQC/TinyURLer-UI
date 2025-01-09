@@ -4,12 +4,46 @@ import axios from "axios";
 
 const CreateQRCodePage = () => {
   const navigate = useNavigate();
-  const [title, setTitle] = useState("");
-  const [longUrl, setLongUrl] = useState("");
-  const [error, setError] = useState(null);
+  const [title, setTitle] = useState(""); // 存储用户输入的标题
+  const [longUrl, setLongUrl] = useState(""); // 存储用户输入的长链接
+  const [error, setError] = useState(null); // 错误消息状态
+  const [loading, setLoading] = useState(false); // 爬取状态
 
   const handleCancel = () => {
     navigate("/qrcodes");
+  };
+
+  const handleUrlBlur = async () => {
+    if (!longUrl) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const jwt = localStorage.getItem("jwt");
+      if (!jwt) {
+        alert("Unauthorized. Please log in.");
+        navigate("/");
+        return;
+      }
+
+      const response = await axios.post(
+        "http://localhost:8080/api/crawl/title",
+        { url: longUrl },
+        {
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+          },
+        }
+      );
+
+      setTitle(response.data);
+    } catch (err) {
+      console.error("Error fetching title:", err);
+      setError("Failed to fetch title. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -18,21 +52,35 @@ const CreateQRCodePage = () => {
       return;
     }
 
-    try {
-      // 调用后端 API
-      const response = await axios.post("http://localhost:8080/api/qrcode", {
-        title,
-        longUrl,
-      });
+    const jwt = localStorage.getItem("jwt");
+    if (!jwt) {
+      alert("Unauthorized. Please log in.");
+      navigate("/");
+      return;
+    }
 
+    try {
+      const response = await axios.post(
+        "http://localhost:8080/api/qrcode",
+        { title, longUrl },
+        {
+          headers: {
+            Authorization: `Bearer ${jwt}`,
+          },
+        }
+      );
       console.log("API Response:", response.data);
 
-      // 创建成功后跳转到 QR Codes 页面
       alert("QR Code Created!");
       navigate("/qrcodes");
     } catch (err) {
       console.error("Error creating QR code:", err);
-      setError("Failed to create the QR code. Please try again.");
+      if (err.response && err.response.status === 401) {
+        setError("Unauthorized. Please log in again.");
+        navigate("/");
+      } else {
+        setError("Failed to create the QR code. Please try again.");
+      }
     }
   };
 
@@ -43,6 +91,19 @@ const CreateQRCodePage = () => {
 
       <form className="mt-4">
         <div className="mb-3">
+          <label htmlFor="longUrl" className="form-label">
+            URL
+          </label>
+          <input
+            type="url"
+            className="form-control"
+            id="longUrl"
+            value={longUrl}
+            onChange={(e) => setLongUrl(e.target.value)}
+            onBlur={handleUrlBlur} // 失去焦点时调用爬取标题
+          />
+        </div>
+        <div className="mb-3">
           <label htmlFor="title" className="form-label">
             Title
           </label>
@@ -50,20 +111,8 @@ const CreateQRCodePage = () => {
             type="text"
             className="form-control"
             id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)} // 更新标题状态
-          />
-        </div>
-        <div className="mb-3">
-          <label htmlFor="longUrl" className="form-label">
-            Long URL
-          </label>
-          <input
-            type="url"
-            className="form-control"
-            id="longUrl"
-            value={longUrl}
-            onChange={(e) => setLongUrl(e.target.value)} // 更新长链接状态
+            value={loading ? "Fetching title..." : title}
+            onChange={(e) => setTitle(e.target.value)}
           />
         </div>
         <div className="d-flex justify-content-between mt-5">
